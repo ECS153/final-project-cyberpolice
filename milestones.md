@@ -5,8 +5,7 @@
 Travis:
 1. Researched steganography and read research papers 
 2. Find and read research papers more carefully and figure out steganography algorithms and storage method, make 3 minute video
-3. What is saved or what is presented to the user
-N/A
+3. N/A
 
 Eric:
 1. Researched project topics
