@@ -25,6 +25,6 @@ Action Items
 * Figure out what encryption package/method we’re going to use
 * Make a 3 minute video explaining our proposal
 
-No pull requests yet, but here's our [starter code](https://github.com/ECS153/final-project-cyberpolice/blob/master/main.py)
+No pull requests yet, but here's our [starter code](https://github.com/ECS153/final-project-cyberpolice/blob/37b764092c3798fe555fd8ab2e26cef2ccfe9857/main.py)
 
 Our first [design doc](https://docs.google.com/document/d/1hRlk2VxMoH3VHHjEDLNd71faIHcHki6fwCZ8tipnOiA/edit?usp=sharing) authored by Travis
