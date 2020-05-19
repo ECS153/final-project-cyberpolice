@@ -80,6 +80,7 @@ def applyWatermark(img, watermark):
 	extractedWatermark.show("Watermark")
 	print("Pictures displayed")
 
+# TODO find referenced code on SO
 # creates gui for user to click and confirm placement of watermark
 def setupImageTk(originalImg, watermark):
 	root = Tk()
