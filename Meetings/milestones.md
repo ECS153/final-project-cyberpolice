@@ -1,6 +1,6 @@
 # Milestone 2
 
-[Video Update]
+[Video Update](https://www.youtube.com/watch?v=041v2TYqYdM&feature=youtu.be)
 
 [Full meeting notes](https://docs.google.com/document/d/15ZfhPxu92KRGRKoWXfRm8PhzwXVGdNorVsot-w8rXAE/edit?usp=sharing)
 
