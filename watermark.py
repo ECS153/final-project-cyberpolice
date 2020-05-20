@@ -1,10 +1,14 @@
+import os
 from tkinter import *
 from PIL import Image, ImageTk
+# referenced https://stackoverflow.com/questions/5501192/how-to-display-picture-and-get-mouse-click-coordinate-on-it/42011399
+# for setting up the iamge gui
 
-# needed to pass data between canvas click and button click event
+size = 128, 128
+# used to pass data between canvas click and button click event
 imgPosition = 0
 
-# extracts 4 least significant bits
+# extracts least significant bits
 def extractBits(pixelsToExtract):
 	extractedPixels = []
 	for i in range(0, len(pixelsToExtract)):
@@ -17,16 +21,20 @@ def extractBits(pixelsToExtract):
 # TODO figure out how this can be sped up... multithreading?
 def extractWatermark(img):
 	print("Extracting watermark from image...\n")
-	# img = Image.open(img)
-	# img = img.convert("RGBA")
+	img = Image.open(img)
+	img = img.convert("RGBA")
 	watermark = list(img.getdata())
 	for i in range(0, len(watermark)):
 		watermark[i] = extractBits(watermark[i])
 	watermarkImg = img.copy()
 	watermarkImg.putdata(watermark)
-	return watermarkImg
+	watermarkImg.show("Watermark revealed")
+	file = os.getcwd() + "/WatermarkRevealed.png"
+	watermarkImg.save(file, "PNG")
+	watermarkImg.show("Watermarked image")
+	print("Picture displayed and saved")
 
-# inserts 4 most significant bits of watermark to 4 least significant bits of image for rbga values
+# inserts significant bits of watermark to least significant bits of image for rbga values
 def modifyBits(pixelsToModify, pixelsToApply):
 	modifiedPixels = []
 	for i in range(0, len(pixelsToModify)):
@@ -38,7 +46,7 @@ def modifyBits(pixelsToModify, pixelsToApply):
 	return tuple(modifiedPixels)
 
 # applies watermark starting at imgPosition specified by user click on gui
-def applyWatermark(img, watermark):
+def applyWatermark(watermark, img):
 	print("Applying watermark to image...\n")
 	# setting up img and watermark to be used
 	img = Image.open(img)
@@ -48,7 +56,6 @@ def applyWatermark(img, watermark):
 	watermarkWidth, height = watermark.size
 	watermark = watermark.convert("RGBA")
 
-	offset = 0
 	pixelsToModify = list(img.getdata())
 	watermarkPixels = list(watermark.getdata())
 	global imgPosition
@@ -75,14 +82,13 @@ def applyWatermark(img, watermark):
 	# can use scale or offset to apply at different spots
 	imgToWatermark = img.copy()
 	imgToWatermark.putdata(pixelsToModify)
-	extractedWatermark = extractWatermark(imgToWatermark)
-	imgToWatermark.show("Watermarked Image")
-	extractedWatermark.show("Watermark")
-	print("Pictures displayed")
+	file = os.getcwd() + "/WatermarkedImg.png"
+	imgToWatermark.save(file, "PNG")
+	imgToWatermark.show("Watermarked image")
+	print("Picture displayed and saved")
 
-# TODO find referenced code on SO
 # creates gui for user to click and confirm placement of watermark
-def setupImageTk(originalImg, watermark):
+def setupImageTk(watermark, originalImg):
 	root = Tk()
 	#setting up a tkinter canvas with scrollbars
 	frame = Frame(root)
@@ -101,13 +107,8 @@ def setupImageTk(originalImg, watermark):
 	canvas.grid(row=0, column=0, sticky=N+S+E+W)
 	xscroll.config(command=canvas.xview)
 	yscroll.config(command=canvas.yview)
-
-	# TODO figure out proper lambda expression for calling function with args
-	def watermarkSpot():
-		applyWatermark(originalImg, watermark)
-
-	#button click event
-	b.config(command=watermarkSpot)
+	
+	b.config(command=lambda: applyWatermark(watermark, originalImg))
 	frame.pack(fill=BOTH,expand=True)
 
 	#adding the image
@@ -116,29 +117,31 @@ def setupImageTk(originalImg, watermark):
 	canvas.config(scrollregion=canvas.bbox(ALL))
 
 	#function to be called when mouse is clicked
-	# TODO fix coordinate placement issue
 	def setupCoordinates(event):
-		print ("(%d, %d)" % (canvas.canvasx(event.x), canvas.canvasy(event.y)))
-		xcoord = canvas.canvasx(event.x)
 		ycoord = canvas.canvasy(event.y)
+		xcoord = canvas.canvasx(event.x)
 		if (xcoord > 0 and ycoord > 0):
 			tempImg = Image.open(originalImg)
 			imgWidth, height = tempImg.size
 			global imgPosition
 			imgPosition = 0
-			imgPosition = int(height)*xcoord + ycoord
+			imgPosition = int(imgWidth)*ycoord + xcoord
 			imgPosition = int(imgPosition)
 
 	#mouseclick event
-	canvas.bind("<ButtonPress-1>",setupCoordinates)
+	canvas.bind("<ButtonPress-1>", setupCoordinates)
 
 	# blocks executation from finishing so picture displays
 	root.mainloop()
 
 if __name__== "__main__":
-	if (len(sys.argv) <= 2 or len(sys.argv) >= 4):
-		raise WrongNumberofArguments("Please provide the image file, \
-			then the watermark image file")
+	if (len(sys.argv) <= 2 or len(sys.argv) >= 5):
+		print("Commands: \napply <watermark file path> <image file path> \nextract <image file path>")
 
 	else:
-		setupImageTk(sys.argv[1], sys.argv[2])
+		if (sys.argv[1] == "apply"):
+			setupImageTk(sys.argv[2], sys.argv[3])
+		elif (sys.argv[1] == "extract"):
+			extractWatermark(sys.argv[2])
+		else:
+			print("Commands: \napply <watermark file path> <image file path> \nextract <image file path>")
