@@ -19,12 +19,14 @@ import matplotlib.pylab as pylab
 from scipy.fftpack import dct
 from scipy.fftpack import idct
 
-u1,v1 = 5, 4  #Middle band coordinates
-u2,v2 = 4, 5
+u1 = 5
+v1 = 4  #Middle band coordinates
+u2= 4
+v2 = 5
 
 n = 8 # 8x8 pixel block
 
-thresh = 1000  #Threshold
+thresh = 500  #Threshold
 
 def double_to_byte(arr):
     return np.uint8(np.round(np.clip(arr, 0, 255), 0))
@@ -60,20 +62,20 @@ def check_coeff(c1, c2, bit, P):
 		return False
 
 def add_coeff(c):
-	if (c >= 0):
-		return c + 1
+	if (c >= 0.0):
+		return c + 1.0
 	else:
-		return c - 1
+		return c - 1.0
 
 def sub_coeff(c):
-	if (c >= 0):
-		return c - 1
+	if (c >= 0.0):
+		return c - 1.0
 	else:
-		return c + 1
+		return c + 1.0
 
 def modify_coeff(arr, bit):
 	coeff = arr.copy()
-
+	#print("Old ", bit, " ", coeff[u1,v1], " ", coeff[u2,v2]) 
 	if (bit == '0'):
 		coeff[u1, v1] = add_coeff(coeff[u1, v1])
 		coeff[u2, v2] = sub_coeff(coeff[u2, v2])
@@ -81,16 +83,23 @@ def modify_coeff(arr, bit):
 	elif(bit == '1'):
 		coeff[u1, v1] = sub_coeff(coeff[u1, v1])
 		coeff[u2, v2] = add_coeff(coeff[u2, v2])
+
+	#print("New ", bit, " ", coeff[u1,v1], " ", coeff[u2,v2]) 
 	return coeff
 
 def embed_bit(arr, b_msg, P):
+	#print("Old array: \n", arr)
 	coeff = dctType2(arr)
+
+	#print("Old Coefficients: \n", coeff)
 
 	while(check_coeff(coeff[u1, v1], coeff[u2,v2], b_msg, P) == False):
 		coeff = modify_coeff(coeff, b_msg)
 
-	
+	print(coeff[u1, v1], " ", coeff[u2,v2])
+	#print("New Coefficients: \n", coeff)
 	block = idctType2(coeff) / ((2*n)**(2))
+	#print("New Array: \n", block)
 	return block;
 
 def embed_DCT(cover, msg):
@@ -98,6 +107,8 @@ def embed_DCT(cover, msg):
 	stego = cover  #create copy of cover
 
 	binary_msg = msg_to_binary(msg)
+
+	print(binary_msg)
 
 	msg_len = len(binary_msg)
 	print(msg_len)
@@ -112,7 +123,6 @@ def embed_DCT(cover, msg):
 
 	for i in range(0, coverSize[0] - n, n):
 		for j in range(0, coverSize[1] - n, n):
-			print(msg_idx)
 			if (msg_idx >= msg_len):
 				break
 
@@ -125,6 +135,48 @@ def embed_DCT(cover, msg):
 		break
 
 	return stego;
+
+def extract_bit(arr):
+	coeff = dctType2(arr)
+	print(coeff[u1, v1], " ", coeff[u2,v2])
+	if (abs(coeff[u1, v1]) - abs(coeff[u2, v2]) > 0):
+		return '0'
+	else:
+		return '1'
+
+
+def extract_DCT(stego):
+	stegoSize = stego.shape
+
+
+	msg_len = len(msg_to_binary("fjnieahfioelhafiealhfiehaefea"))  #Will come from key
+
+	msg_bits = ['']
+
+	block_idx = np.arange(0, msg_len)  #Will come from key
+
+	print(msg_len)
+
+	for x in block_idx:
+		i = (x // (stegoSize[0]//n)) * n
+		j = (x % (stegoSize[1]//n)) * n
+		msg_bits.append(extract_bit(stego[i:(i+8), j:(j+8)]))
+
+	msg = ''.join(msg_bits)
+
+	print("New message: ", msg)
+
+	msg_int = int(msg, 2)
+
+	msg_num_bytes = msg_int.bit_length() + 7 // 8
+
+	msg_bytes = msg_int.to_bytes(msg_num_bytes, "big")
+
+	return msg_bytes.decode().lstrip('\x00')
+
+
+	print("Extracted message: ", retrieved_msg)
+
 
 def main():
 
@@ -147,4 +199,7 @@ def main():
 		pyplot.imshow( np.hstack( (cover, stego) ) ,cmap='gray')
 		pyplot.show()
 
+		print("Extracted message: ", extract_DCT(stego))
+	
+			
 main()
