@@ -90,7 +90,7 @@ def embed_bit(arr, b_msg, P):
 
 def embed_DCT(cover, msg):
 	coverSize = cover.shape
-	stego = cover  #create copy of cover
+	stego = cover.copy()  #create copy of cover
 
 	binary_msg = msg_to_binary(msg)
 
