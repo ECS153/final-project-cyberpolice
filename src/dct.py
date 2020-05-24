@@ -1,24 +1,12 @@
 import os
 import random
-import time
-import sys
-from PIL import Image
-from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 import numpy as np
 import matplotlib.pyplot as pyplot
-import scipy
 import imageio
 import math
-
-from numpy import pi
-from numpy import sin
-from numpy import zeros
-from numpy import r_
-from scipy import signal
-from scipy import misc 
-import matplotlib.pylab as pylab
 from scipy.fftpack import dct
 from scipy.fftpack import idct
+from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
 u1 = 5
 v1 = 4  #Middle band coordinates
