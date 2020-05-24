@@ -15,7 +15,7 @@ v2 = 5
 
 n = 8 # 8x8 pixel block
 
-thresh = 500  #Threshold
+thresh = 100  #Threshold
 
 def dctType2(a):
 	return dct(dct(a, axis=0), axis=1)
@@ -62,22 +62,25 @@ def add_coeff(c):
 		return c - 1.0
 
 
-def sub_coeff(c):
-	if (c >= 0.0):
+def sub_coeff(c, c_init):
+	if (abs(c) <= 1):
+		return 0
+	elif (c >= 0):
 		return c - 1.0
 	else:
-		return c + 1.0
+		return c + 1
 
 
-def modify_coeff(arr, bit):
+
+def modify_coeff(arr, bit, c1_init, c2_init):
 	coeff = arr.copy()
 
 	if (bit == '0'):
 		coeff[u1, v1] = add_coeff(coeff[u1, v1])
-		coeff[u2, v2] = sub_coeff(coeff[u2, v2])
+		coeff[u2, v2] = sub_coeff(coeff[u2, v2], c2_init)
 
 	elif(bit == '1'):
-		coeff[u1, v1] = sub_coeff(coeff[u1, v1])
+		coeff[u1, v1] = sub_coeff(coeff[u1, v1], c1_init)
 		coeff[u2, v2] = add_coeff(coeff[u2, v2])
 
 	return coeff
@@ -86,9 +89,19 @@ def modify_coeff(arr, bit):
 def embed_bit(arr, b_msg, P):
 	coeff = dctType2(arr)
 
+	if (coeff[u1, v1] <= 0):
+		c1_init = 0
+	else:
+		c1_init = 1
+
+	if (coeff[u2, v2] <= 0):
+		c2_init = 0
+	else:
+		c2_init = 1
+	
 	#Modify coefficients if they don't satisfy req for bit value
 	while(check_coeff(coeff[u1, v1], coeff[u2,v2], b_msg, P) == False):
-		coeff = modify_coeff(coeff, b_msg)
+		coeff = modify_coeff(coeff, b_msg, c1_init, c2_init)
 
 	block = idctType2(coeff) / ((2*n)**(2))
 
@@ -186,14 +199,14 @@ if __name__ == "__main__":
 		stego, ct, key, nonce = embed_DCT(cover, msg, keyName)
 
 		print("Writing to ", stegoFile)
-		imageio.imwrite(stegoFile, stego, pilmode='L')
+		imageio.imwrite(stegoFile, stego, pilmode='L', quality=100)
 
 		stego = imageio.imread(stegoFile, pilmode='L');
 
 		pyplot.figure(2)
 
 		pyplot.imshow( np.hstack( (cover, stego) ) ,cmap='gray')
-		pyplot.show()
+		#pyplot.show()
 		extracted_msg = extract_DCT(stego, ct, key, nonce, keyName)
 
 		print("Extracted message:", extracted_msg)
