@@ -35,6 +35,8 @@ def dctType2(a):
 def idctType2(a):
 	return idct(idct(a, axis=0), axis=1)
 
+def round_down(num, divisor):
+	return num - (num % divisor)
 
 def msg_encodeBinary(msg):
 	binary_msg = msg.encode()
@@ -114,29 +116,35 @@ def embed_DCT(cover, msg):
 
 	msg_len = len(binary_msg)
 
-	num_bits = math.floor((coverSize[0] * coverSize[1]) // (n*n)) #One bit per 8x8 block
+	num_bits = math.floor(round_down(coverSize[0], n) *  #One bit per 8x8 block
+						  round_down(coverSize[1], n) / (n*n)) 
 
 	if (msg_len > num_bits):
+
 		raise ValueError("Message too long")
 
 	order = random.sample(range(0, num_bits), msg_len)
+	
+	orderString = " ".join(map(str,order))
 
 	msg_idx = 0;
 
-	for i in range(0, coverSize[0] - n, n):
-		for j in range(0, coverSize[1] - n, n):
-			if (msg_idx >= msg_len):
-				break
+	for x in order:
+		print(x)
+		i = (x // (coverSize[0]//n)) * n
+		j = (x % (coverSize[1]//n)) * n
 
-			stego[i:(i+n), j:(j+n)] = embed_bit(cover[i:(i+n), j:(j+n)], \
+		if (msg_idx >= msg_len):
+			break
+
+		stego[i:(i+n), j:(j+n)] = embed_bit(cover[i:(i+n), j:(j+n)], \
 											   binary_msg[msg_idx], thresh)
 
-			msg_idx = msg_idx + 1
-		else:
-			continue
-		break
+		msg_idx = msg_idx + 1
 
-	return stego;
+
+
+	return stego, order
 
 def extract_bit(arr):
 	coeff = dctType2(arr)
@@ -146,7 +154,7 @@ def extract_bit(arr):
 		return '1'
 
 
-def extract_DCT(stego):
+def extract_DCT(stego, order):
 	stegoSize = stego.shape
 
 
@@ -156,7 +164,7 @@ def extract_DCT(stego):
 
 	block_idx = np.arange(0, msg_len)  #Will come from key
 	
-	for x in block_idx:
+	for x in order:
 		i = (x // (stegoSize[0]//n)) * n
 		j = (x % (stegoSize[1]//n)) * n
 		msg_bits.append(extract_bit(stego[i:(i+8), j:(j+8)]))
@@ -168,9 +176,9 @@ def extract_DCT(stego):
 
 if __name__ == "__main__":
 	import sys
-	if (len(sys.argv) < 1):
+	if (len(sys.argv) < 2):
 		raise WrongNumberofArguments("Please provide the cover image file \
-										and a message\n")
+										, a message, and name for your key\n")
 
 	else:
 		cover = imageio.imread(sys.argv[1], as_gray=1)
@@ -178,11 +186,14 @@ if __name__ == "__main__":
 
 		print("Inserting watermark into image...\n")
 
-		stego = embed_DCT(cover, sys.argv[2])
+		stego, order = embed_DCT(cover, sys.argv[2])
 
 		pyplot.figure(2)
 
 		pyplot.imshow( np.hstack( (cover, stego) ) ,cmap='gray')
 		pyplot.show()
+		extracted_msg = extract_DCT(stego, order)
+		print("Extracted message: ", extracted_msg)
 
-		print("Extracted message: ", extract_DCT(stego))
+		if (extracted_msg == sys.argv[2]):
+			print("Successfully extracted same message")
