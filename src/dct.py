@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as pyplot
 import scipy
 import imageio
+import math
 
 from numpy import pi
 from numpy import sin
@@ -28,9 +29,6 @@ n = 8 # 8x8 pixel block
 
 thresh = 500  #Threshold
 
-def double_to_byte(arr):
-    return np.uint8(np.round(np.clip(arr, 0, 255), 0))
-
 def dctType2(a):
 	return dct(dct(a, axis=0), axis=1)
 
@@ -38,10 +36,23 @@ def idctType2(a):
 	return idct(idct(a, axis=0), axis=1)
 
 
-def msg_to_binary(msg):
+def msg_encodeBinary(msg):
 	binary_msg = msg.encode()
+
 	binary_int = int.from_bytes(binary_msg, "big") 
+
 	return bin(binary_int)[2:]
+
+
+def msg_decodeBinary(msg):
+	msg_int = int(msg, 2)
+
+	msg_num_bytes = msg_int.bit_length() + 7 // 8
+
+	msg_bytes = msg_int.to_bytes(msg_num_bytes, "big")
+
+	return msg_bytes.decode().lstrip('\x00')
+
 
 def check_coeff(c1, c2, bit, P):
 	diff = abs(c1) - abs(c2)
@@ -53,11 +64,13 @@ def check_coeff(c1, c2, bit, P):
 	else:
 		return False
 
+
 def add_coeff(c):
 	if (c >= 0.0):
 		return c + 1.0
 	else:
 		return c - 1.0
+
 
 def sub_coeff(c):
 	if (c >= 0.0):
@@ -65,8 +78,10 @@ def sub_coeff(c):
 	else:
 		return c + 1.0
 
+
 def modify_coeff(arr, bit):
 	coeff = arr.copy()
+
 	if (bit == '0'):
 		coeff[u1, v1] = add_coeff(coeff[u1, v1])
 		coeff[u2, v2] = sub_coeff(coeff[u2, v2])
@@ -86,21 +101,25 @@ def embed_bit(arr, b_msg, P):
 		coeff = modify_coeff(coeff, b_msg)
 
 	block = idctType2(coeff) / ((2*n)**(2))
+
 	return block;
+
 
 def embed_DCT(cover, msg):
 	coverSize = cover.shape
+
 	stego = cover.copy()  #create copy of cover
 
-	binary_msg = msg_to_binary(msg)
+	binary_msg = msg_encodeBinary(msg)
 
 	msg_len = len(binary_msg)
 
-	num_bits = (coverSize[0] * coverSize[1]) / 64 #One bit per 8x8 block
+	num_bits = math.floor((coverSize[0] * coverSize[1]) // (n*n)) #One bit per 8x8 block
 
 	if (msg_len > num_bits):
-		print("Message too long")
-		return None
+		raise ValueError("Message too long")
+
+	order = random.sample(range(0, num_bits), msg_len)
 
 	msg_idx = 0;
 
@@ -131,7 +150,7 @@ def extract_DCT(stego):
 	stegoSize = stego.shape
 
 
-	msg_len = len(msg_to_binary("fjnieahfioelhafiealhfiehaefea"))  #Will come from key
+	msg_len = len(msg_encodeBinary("fjnieahfioelhafiealhfiehaefea"))  #Will come from key
 
 	msg_bits = ['']
 
@@ -144,17 +163,11 @@ def extract_DCT(stego):
 
 	msg = ''.join(msg_bits)
 
-	msg_int = int(msg, 2)
-
-	msg_num_bytes = msg_int.bit_length() + 7 // 8
-
-	msg_bytes = msg_int.to_bytes(msg_num_bytes, "big")
-
-	return msg_bytes.decode().lstrip('\x00')
+	return msg_decodeBinary(msg)
 
 
-def main():
-
+if __name__ == "__main__":
+	import sys
 	if (len(sys.argv) < 1):
 		raise WrongNumberofArguments("Please provide the cover image file \
 										and a message\n")
@@ -173,6 +186,3 @@ def main():
 		pyplot.show()
 
 		print("Extracted message: ", extract_DCT(stego))
-	
-			
-main()
