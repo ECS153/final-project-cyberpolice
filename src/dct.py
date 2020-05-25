@@ -8,14 +8,14 @@ from scipy.fftpack import dct
 from scipy.fftpack import idct
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
-u1 = 5
-v1 = 4  #Middle band coordinates
-u2= 4
-v2 = 5
+u1 = 3
+v1 = 2  #Middle band coordinates
+u2= 2
+v2 = 3
 
 n = 8 # 8x8 pixel block
 
-thresh = 500  #Threshold
+thresh = 600  #Threshold
 
 def dctType2(a):
 	return dct(dct(a, axis=0), axis=1)
@@ -62,22 +62,25 @@ def add_coeff(c):
 		return c - 1.0
 
 
-def sub_coeff(c):
-	if (c >= 0.0):
+def sub_coeff(c, c_init):
+	if (abs(c) <= 1):
+		return 0
+	elif (c >= 0):
 		return c - 1.0
 	else:
-		return c + 1.0
+		return c + 1
 
 
-def modify_coeff(arr, bit):
+
+def modify_coeff(arr, bit, c1_init, c2_init):
 	coeff = arr.copy()
 
 	if (bit == '0'):
 		coeff[u1, v1] = add_coeff(coeff[u1, v1])
-		coeff[u2, v2] = sub_coeff(coeff[u2, v2])
+		coeff[u2, v2] = sub_coeff(coeff[u2, v2], c2_init)
 
 	elif(bit == '1'):
-		coeff[u1, v1] = sub_coeff(coeff[u1, v1])
+		coeff[u1, v1] = sub_coeff(coeff[u1, v1], c1_init)
 		coeff[u2, v2] = add_coeff(coeff[u2, v2])
 
 	return coeff
@@ -85,10 +88,19 @@ def modify_coeff(arr, bit):
 
 def embed_bit(arr, b_msg, P):
 	coeff = dctType2(arr)
+	if (coeff[u1, v1] <= 0):
+		c1_init = 0
+	else:
+		c1_init = 1
 
+	if (coeff[u2, v2] <= 0):
+		c2_init = 0
+	else:
+		c2_init = 1
+	
 	#Modify coefficients if they don't satisfy req for bit value
 	while(check_coeff(coeff[u1, v1], coeff[u2,v2], b_msg, P) == False):
-		coeff = modify_coeff(coeff, b_msg)
+		coeff = modify_coeff(coeff, b_msg, c1_init, c2_init)
 
 	block = idctType2(coeff) / ((2*n)**(2))
 
@@ -108,10 +120,9 @@ def embed_DCT(cover, msg, keyName):
 						  round_down(coverSize[1], n) / (n*n)) 
 
 	if (msg_len > num_bits):
-
 		raise ValueError("Message too long")
 
-	order = random.sample(range(0, num_bits), msg_len)
+	order = random.sample(range(0, num_bits), msg_len)  #
 
 	msg_idx = 0;
 
@@ -121,7 +132,7 @@ def embed_DCT(cover, msg, keyName):
 
 		if (msg_idx >= msg_len):
 			break
-
+		print(cover[i:(i+n), j:(j+n)])
 		stego[i:(i+n), j:(j+n)] = embed_bit(cover[i:(i+n), j:(j+n)], \
 											   binary_msg[msg_idx], thresh)
 
@@ -186,7 +197,7 @@ if __name__ == "__main__":
 		stego, ct, key, nonce = embed_DCT(cover, msg, keyName)
 
 		print("Writing to ", stegoFile)
-		imageio.imwrite(stegoFile, stego, pilmode='L')
+		imageio.imwrite(stegoFile, stego, pilmode='L', quality=100)
 
 		stego = imageio.imread(stegoFile, pilmode='L');
 
