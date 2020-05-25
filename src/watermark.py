@@ -2,7 +2,7 @@ import os
 from tkinter import *
 from PIL import Image, ImageTk
 # referenced https://stackoverflow.com/questions/5501192/how-to-display-picture-and-get-mouse-click-coordinate-on-it/42011399
-# for setting up the iamge gui
+# for setting up the image gui
 
 size = 128, 128
 # used to pass data between canvas click and button click event

@@ -4,11 +4,40 @@ import time
 import sys
 from PIL import Image
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+import binascii
+import bchlib
 
-def convertStringToBinary(msg):
-	if not msg.isascii():
-		raise FormatError("Must be ASCII")
-	return "".join(f"{ord(i):08b}" for i in msg)
+BCH_POLYNOMIAL = 8219
+# max number of bit flips we can account for, increasing this increase the ecc length
+BCH_BITS = 100
+
+# assumes decryptMsg will be a list of binary with spaces between each 8 bits
+def extractBCHPacket(decryptMsg):
+	# turn binary back into int and append to bytearray
+	decryptMsg = decryptMsg.split()
+	extractedPacket = bytearray(b'')
+	for i in range(0, len(decryptMsg)):
+		# introducing some errors
+		bit_num = random.randint(0, 20)
+		bytemessage = int(decryptMsg[i], 2)
+		if bit_num == 0:
+			bytemessage = 1
+		extractedPacket.append(bytemessage)
+	return extractedPacket
+
+# generates binary message and ecc from input string
+def setupBCH(msg):
+	# create a bch object
+	bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)
+	data = bytearray()
+	data.extend(map(ord, msg))
+	ecc = bch.encode(data)
+	packet = data + ecc
+	binPacket = ""
+	for i in range(0, len(packet)):
+		binPacket += '{0:08b}'.format(packet[i])
+		binPacket += " "
+	return binPacket
 
 def findLSB(colorVal):
 	if (colorVal % 2 == 0):
@@ -75,16 +104,15 @@ def insertMessage(img, msg, aad):
 
 	alteredImg = img.copy()
 
-	#Generate psuedo random order of pixels to modify based on length of msg
-	order = random.sample(range(0, img.width * img.height), len(msg) * 2) 
-
+	#Generate psuedo random order of pixels to modify based on length of bch msg
+	binaryMsg = setupBCH(msg)
+	order = random.sample(range(0, img.width * img.height), (len(binaryMsg.split(" "))-1) * 2) 
 	pixels = list(img.getdata())	#Flatten RGBA arrays into a list
 
-	binaryMsg = convertStringToBinary(msg)
+	binaryMsg = binaryMsg.replace(" ", "")
 
 	for i in range(0, len(order)):
 		for j in range(0, 4):
-
 			pixels[ order[i] ] = changeLSB(pixels[ order[i] ], binaryMsg[ (i*4):((i*4)+4) ])
 
 	alteredImg.putdata(pixels)  #Place modified pixels into another image
@@ -121,32 +149,26 @@ def insertMessage(img, msg, aad):
 		if (i % 2 == 1):
 			decryptMsg = decryptMsg + " "
 
-	decryptMsg = decryptMsg.split()
+	extractedPacket = extractBCHPacket(decryptMsg)
 
-	decryptMsg = "".join(list(map(lambda x: chr(int(x ,2)), decryptMsg)))
+	# check for errors 
+	bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)	
+	newData, newEcc = extractedPacket[:-bch.ecc_bytes], extractedPacket[-bch.ecc_bytes:]
+	bitflips = bch.decode_inplace(newData, newEcc)
 
-	print("Here is the decrypted message: ", decryptMsg)
+	print('bitflips: %d' % (bitflips))
+	print("Here is the decrypted message: ", newData.decode('utf-8'))
 
-
-
-
-
-def main():
+if __name__== "__main__":
 
 	if (len(sys.argv) < 2):
-		raise WrongNumberofArguments("Please provide the image file, \
-			the message you wish to encrypt, and a name to identify this message")
+		raise WrongNumberofArguments("Please provide the image file, the message you wish to encrypt, and a name to identify this message")
 
 	else:
 		img = Image.open(sys.argv[1])
 		
 		img = img.convert("RGBA")
 
-		img.show("Original image")
-
 		print("Inserting message into image...\n")
 
 		insertMessage(img, sys.argv[2], sys.argv[3])
-
-
-main()
