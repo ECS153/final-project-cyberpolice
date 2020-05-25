@@ -8,14 +8,14 @@ from scipy.fftpack import dct
 from scipy.fftpack import idct
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
-u1 = 5
-v1 = 4  #Middle band coordinates
-u2= 4
-v2 = 5
+u1 = 3
+v1 = 2  #Middle band coordinates
+u2= 2
+v2 = 3
 
 n = 8 # 8x8 pixel block
 
-thresh = 100  #Threshold
+thresh = 600  #Threshold
 
 def dctType2(a):
 	return dct(dct(a, axis=0), axis=1)
@@ -88,7 +88,6 @@ def modify_coeff(arr, bit, c1_init, c2_init):
 
 def embed_bit(arr, b_msg, P):
 	coeff = dctType2(arr)
-
 	if (coeff[u1, v1] <= 0):
 		c1_init = 0
 	else:
@@ -121,10 +120,9 @@ def embed_DCT(cover, msg, keyName):
 						  round_down(coverSize[1], n) / (n*n)) 
 
 	if (msg_len > num_bits):
-
 		raise ValueError("Message too long")
 
-	order = random.sample(range(0, num_bits), msg_len)
+	order = random.sample(range(0, num_bits), msg_len)  #
 
 	msg_idx = 0;
 
@@ -134,7 +132,7 @@ def embed_DCT(cover, msg, keyName):
 
 		if (msg_idx >= msg_len):
 			break
-
+		print(cover[i:(i+n), j:(j+n)])
 		stego[i:(i+n), j:(j+n)] = embed_bit(cover[i:(i+n), j:(j+n)], \
 											   binary_msg[msg_idx], thresh)
 
@@ -206,7 +204,7 @@ if __name__ == "__main__":
 		pyplot.figure(2)
 
 		pyplot.imshow( np.hstack( (cover, stego) ) ,cmap='gray')
-		#pyplot.show()
+		pyplot.show()
 		extracted_msg = extract_DCT(stego, ct, key, nonce, keyName)
 
 		print("Extracted message:", extracted_msg)
