@@ -127,12 +127,11 @@ def embed_DCT(cover, msg, keyName):
 	msg_idx = 0;
 
 	for x in order:
-		i = (x // (coverSize[0]//n)) * n
-		j = (x % (coverSize[1]//n)) * n
+		i = (x % (coverSize[0]//n)) * n
+		j = (x // (coverSize[1]//n)) * n
 
 		if (msg_idx >= msg_len):
 			break
-		print(cover[i:(i+n), j:(j+n)])
 		stego[i:(i+n), j:(j+n)] = embed_bit(cover[i:(i+n), j:(j+n)], \
 											   binary_msg[msg_idx], thresh)
 
@@ -169,8 +168,8 @@ def extract_DCT(stego, ct, key, nonce, keyName):
 	msg_bits = ['']
 	
 	for x in order:
-		i = (x // (stegoSize[0]//n)) * n
-		j = (x % (stegoSize[1]//n)) * n
+		i = (x % (stegoSize[0]//n)) * n
+		j = (x // (stegoSize[1]//n)) * n
 		msg_bits.append(extract_bit(stego[i:(i+8), j:(j+8)]))
 
 	msg = ''.join(msg_bits)
