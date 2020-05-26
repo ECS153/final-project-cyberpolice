@@ -6,7 +6,7 @@ import imageio
 import math
 from scipy.fftpack import dct
 from scipy.fftpack import idct
-from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+from cryptography.fernet import Fernet
 
 u1 = 3
 v1 = 2  #Middle band coordinates
@@ -107,7 +107,7 @@ def embed_bit(arr, b_msg, P):
 	return block;
 
 
-def embed_DCT(cover, msg, keyName):
+def embed_DCT(cover, msg):
 	coverSize = cover.shape
 
 	stego = cover.copy()  #create copy of cover
@@ -138,13 +138,12 @@ def embed_DCT(cover, msg, keyName):
 		msg_idx = msg_idx + 1
 
 	orderString = " ".join(map(str,order))
-	byteString = bytes(orderString, "utf-8")	  #Must be byte array to encrpt
-	key = ChaCha20Poly1305.generate_key() #User keeps this
-	chacha = ChaCha20Poly1305(key)
-	nonce = os.urandom(12) 	#User keeps this
-	ct = chacha.encrypt(nonce, byteString, bytes(keyName, "utf-8")) #User keeps this
+	binOrderString = orderString.encode('utf-8')
+	key = Fernet.generate_key()
+	cipher_suite = Fernet(key)
+	encoded_text = cipher_suite.encrypt(binOrderString)
 
-	return stego, ct, key, nonce
+	return stego, key, encoded_text
 
 def extract_bit(arr):
 	coeff = dctType2(arr)
@@ -154,16 +153,13 @@ def extract_bit(arr):
 		return '1'
 
 
-def extract_DCT(stego, ct, key, nonce, keyName):
+def extract_DCT(stego, key, encoded_text):
 	stegoSize = stego.shape
 
-	chacha = ChaCha20Poly1305(key)
+	cipher_suite = Fernet(key)
+	decoded_text = cipher_suite.decrypt(encoded_text)
 
-	decryptString = chacha.decrypt(nonce, ct, bytes(keyName, "utf-8"))
-
-	decodeString = decryptString.decode("utf-8")
-
-	order = list(map(int, decodeString.split()))
+	order = list(map(int, decoded_text.split()))
 
 	msg_bits = ['']
 	
@@ -187,24 +183,21 @@ if __name__ == "__main__":
 	else:
 		stegoFile = sys.argv[2]
 		msg = sys.argv[3]
-		keyName = sys.argv[4]
 
 		cover = imageio.imread(sys.argv[1], pilmode='L')
 
 		print("Inserting watermark into image...\n")
 
-		stego, ct, key, nonce = embed_DCT(cover, msg, keyName)
-
+		stego, key, encoded_text = embed_DCT(cover, msg)
 		print("Writing to ", stegoFile)
 		imageio.imwrite(stegoFile, stego, pilmode='L', quality=100)
-
 		stego = imageio.imread(stegoFile, pilmode='L');
 
 		pyplot.figure(2)
 
 		pyplot.imshow( np.hstack( (cover, stego) ) ,cmap='gray')
 		pyplot.show()
-		extracted_msg = extract_DCT(stego, ct, key, nonce, keyName)
+		extracted_msg = extract_DCT(stego, key, encoded_text)
 
 		print("Extracted message:", extracted_msg)
 		if (extracted_msg == msg):
