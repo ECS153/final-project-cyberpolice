@@ -10,6 +10,16 @@ import bchlib
 BCH_POLYNOMIAL = 8219
 # max number of bit flips we can account for, increasing this increase the ecc length
 BCH_BITS = 100
+# for determining how many times the packet should be repeated for ecc
+NUM_REPETITIONS = 4
+
+# check for errors and correct
+def performBCHCorrection(extractedPacket):
+	bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)	
+	newData, newEcc = extractedPacket[:-bch.ecc_bytes], extractedPacket[-bch.ecc_bytes:]
+	bitflips = bch.decode_inplace(newData, newEcc)
+	print('bitflips: %d' % (bitflips))
+	print("Here is the decrypted message: ", newData.decode('utf-8'))
 
 # assumes decryptMsg will be a list of binary with spaces between each 8 bits
 def extractBCHPacket(decryptMsg):
@@ -38,6 +48,22 @@ def setupBCH(msg):
 		binPacket += '{0:08b}'.format(packet[i])
 		binPacket += " "
 	return binPacket
+
+# assumes we're keeping track of original binary message length
+# TODO figure out if there's some sort of unique token that can be used to split messages or if we can like add an extra bit to look for
+def extractRepetitions(decryptMsg, originalBinaryLength):
+	indices = []
+	for i in range(0, NUM_REPETITIONS):
+		indices.append(originalBinaryLength*i)
+	parts = [decryptMsg[i:j] for i,j in zip(indices, indices[1:]+[None])]
+	return parts
+
+def setupRepetitions(binaryMsg):
+	# repeat the message+ecc based on NUM_REPETITIONS
+	temp = binaryMsg
+	for i in range(0, NUM_REPETITIONS - 1):
+		binaryMsg += temp
+	return binaryMsg
 
 def findLSB(colorVal):
 	if (colorVal % 2 == 0):
@@ -104,14 +130,18 @@ def insertMessage(img, msg, aad):
 
 	alteredImg = img.copy()
 
-	#Generate psuedo random order of pixels to modify based on length of bch msg
+	# repeat the message+ecc based on NUM_REPETITIONS
 	binaryMsg = setupBCH(msg)
+	originalBinaryMsgLength = len(binaryMsg)
+	binaryMsg = setupRepetitions(binaryMsg)
+
+	#Generate psuedo random order of pixels to modify based on length of bch msg
 	order = random.sample(range(0, img.width * img.height), (len(binaryMsg.split(" "))-1) * 2) 
 	pixels = list(img.getdata())	#Flatten RGBA arrays into a list
 
 	binaryMsg = binaryMsg.replace(" ", "")
 
-	for i in range(0, len(order)):
+	for i in range(0, len(order) - 1):
 		for j in range(0, 4):
 			pixels[ order[i] ] = changeLSB(pixels[ order[i] ], binaryMsg[ (i*4):((i*4)+4) ])
 
@@ -119,7 +149,7 @@ def insertMessage(img, msg, aad):
 
 	print("Displaying image with embedded message...\n")
 
-	alteredImg.show("Altered Image")
+	# alteredImg.show("Altered Image")
 
 	orderString = " ".join(map(str,order))        #Concatenate pixel coordinates into one whole string
 	byteString = bytes(orderString, "ascii")	  #Must be byte array to encrpt
@@ -149,15 +179,13 @@ def insertMessage(img, msg, aad):
 		if (i % 2 == 1):
 			decryptMsg = decryptMsg + " "
 
-	extractedPacket = extractBCHPacket(decryptMsg)
+	# Split repeated packet based on length
+	repeatedMessages = extractRepetitions(decryptMsg, originalBinaryMsgLength)
 
-	# check for errors 
-	bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)	
-	newData, newEcc = extractedPacket[:-bch.ecc_bytes], extractedPacket[-bch.ecc_bytes:]
-	bitflips = bch.decode_inplace(newData, newEcc)
-
-	print('bitflips: %d' % (bitflips))
-	print("Here is the decrypted message: ", newData.decode('utf-8'))
+	# extract packet and perform BCH correction on each repeated message
+	for i in range(0, len(repeatedMessages)):
+		extractedPacket = extractBCHPacket(repeatedMessages[i])
+		performBCHCorrection(extractedPacket)
 
 if __name__== "__main__":
 
