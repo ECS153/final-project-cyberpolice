@@ -7,9 +7,11 @@ import os
 file = "test"
 
 def test_compression(cover, msg, threshold):
-	print("\nBeginning compression tests\n")
+	print("\nBeginning compression tests")
 
 	for rate in range(10, 110, 10):
+		match = False
+
 		stego, key, encoded_text, order = embed_DCT(cover, msg, threshold)
 
 		#Writeback as jpg to simulate compression
@@ -19,10 +21,16 @@ def test_compression(cover, msg, threshold):
 
 		try:
 			extracted_msg = extract_DCT(stegojpg, key, encoded_text, order)
-			if (extracted_msg == msg):
-				print("\tCompression Rate:", rate, "Success")
+			print("\tRecovered Messages:")
+			for x in extracted_msg:
+				print("\t\t" + x)
+				if (x == msg):
+					match = True
+
+			if (match):
+				print("\tCompression Rate:", rate, "Success\n")
 			else:
-				print("\tCompression Rate:", rate, "Failed")
+				print("\tCompression Rate:", rate, "Failed\n")
 		except:
 			print("\tCompression Rate:", rate, "Failed")
 
@@ -39,11 +47,8 @@ def main():
 							 and a message\n")
 	cover = imageio.imread(sys.argv[1], pilmode='L')
 	threshold = int(sys.argv[2])
-	msg = sys.argv[3]
-	i = len(msg)
-	while i < 50:
-		msg += " "
-		i = len(msg)
+	msg = sys.argv[3].rstrip('\n')
+	
 	test_compression(cover, msg, threshold)
 
 main()
