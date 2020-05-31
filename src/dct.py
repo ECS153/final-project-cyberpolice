@@ -17,13 +17,13 @@ NUM_REPETITIONS = 3
 MAX_MESSAGE_LENGTH = 50
 
 u1 = 3
-v1 = 2  #Middle band coordinates
-u2= 2
+v1 = 4  #Middle band coordinates
+u2= 4
 v2 = 3
 
 n = 8 # 8x8 pixel block
 
-threshold = 500  #Threshold
+threshold = 500  #Default threshold
 
 compressionRate = 50
 
@@ -42,11 +42,11 @@ def performBCHCorrection(extractedPacket):
 	newData, newEcc = extractedPacket[:-bch.ecc_bytes], extractedPacket[-bch.ecc_bytes:]
 	try:
 		bitflips = bch.decode_inplace(newData, newEcc)
-		print('bitflips: %d' % (bitflips))
-		print("Here is the decrypted message: ", newData.decode('utf-8'))
-		return newData.decode('utf-8')
+		#print('bitflips: %d' % (bitflips))
+		#print("Here is the decrypted message: ", newData.decode('utf-8'))
+		return newData.decode('utf-8').rstrip(' \n')
 	except:
-		print("Issues with decoding data, here's what was recovered: ", newData)
+		#print("Issues with decoding data, here's what was recovered: ", newData)
 		return newData
 
 # assumes decryptMsg will be a list of binary with spaces between each 8 bits
@@ -109,11 +109,13 @@ def msg_encodeBinary(msg):
 def msg_decodeBinary(msg):
 	repeatedMessages = extractRepetitions(msg)
 	# extract packet and perform BCH correction on each repeated message
-	extractedMessage = ""
+	extractedMessages = []
 	for i in range(0, len(repeatedMessages)):
 		extractedPacket = extractBCHPacket(repeatedMessages[i])
-		extractedMessage = performBCHCorrection(extractedPacket)
-	return extractedMessage
+		extractedMessages.append(performBCHCorrection(extractedPacket))
+
+	#Return a list of recovered messages
+	return extractedMessages
 
 
 def check_coeff(c1, c2, bit, P):
@@ -241,7 +243,10 @@ def extract_DCT(stego, key, encoded_text, order1):
 
 	msg = ''.join(msg_bits)
 
-	return msg_decodeBinary(msg)
+	msg_reps = msg_decodeBinary(msg)
+
+
+	return msg_reps
 
 if __name__ == "__main__":
 	import sys
@@ -251,9 +256,9 @@ if __name__ == "__main__":
 
 	else:
 		stegoFile = sys.argv[2]
-		msg = sys.argv[3]
-		if (len(msg) < MAX_MESSAGE_LENGTH):
-			raise ValueError("Please make sure your message is less than " + MAX_MESSAGE_LENGTH + " characters long.")
+		msg = sys.argv[3].rstrip('\n')
+		if (len(msg) > MAX_MESSAGE_LENGTH):
+			raise ValueError("Please make sure your message is less than " + str(MAX_MESSAGE_LENGTH) + " characters long.")
 
 		cover = imageio.imread(sys.argv[1], pilmode='L')
 
@@ -277,3 +282,10 @@ if __name__ == "__main__":
 		pyplot.show()
 
 		extracted_msg = extract_DCT(stegojpg, key, encoded_text, order)
+		print("\tOriginal Message:  ", msg + "\n")
+		for x in extracted_msg:
+			if (x == msg):
+				print("\tExtracted Message: ", x)
+				print("\t\tSuccessfully recovered the same message")
+			else:
+				print("\t\tFailed to retrieve original message")
