@@ -31,7 +31,6 @@ def extractWatermark(img):
 	watermarkImg.show("Watermark revealed")
 	file = os.getcwd() + "/WatermarkRevealed.png"
 	watermarkImg.save(file, "PNG")
-	watermarkImg.show("Watermarked image")
 	print("Picture displayed and saved")
 
 # inserts significant bits of watermark to least significant bits of image for rbga values
@@ -47,6 +46,7 @@ def modifyBits(pixelsToModify, pixelsToApply):
 
 # applies watermark starting at imgPosition specified by user click on gui
 def applyWatermark(watermark, img):
+
 	print("Applying watermark to image...\n")
 	# setting up img and watermark to be used
 	img = Image.open(img)
@@ -88,7 +88,7 @@ def applyWatermark(watermark, img):
 	print("Picture displayed and saved")
 
 # creates gui for user to click and confirm placement of watermark
-def setupImageTk(watermark, originalImg):
+def chooseWatermarkLocation(watermark, originalImg):
 	root = Tk()
 	#setting up a tkinter canvas with scrollbars
 	frame = Frame(root)
@@ -140,7 +140,7 @@ if __name__== "__main__":
 
 	else:
 		if (sys.argv[1] == "apply"):
-			setupImageTk(sys.argv[2], sys.argv[3])
+			chooseWatermarkLocation(sys.argv[2], sys.argv[3])
 		elif (sys.argv[1] == "extract"):
 			extractWatermark(sys.argv[2])
 		else:

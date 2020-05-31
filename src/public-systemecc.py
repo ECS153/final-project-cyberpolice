@@ -2,6 +2,7 @@ import os
 import random
 import time
 import sys
+import string
 from PIL import Image
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 import binascii
@@ -12,6 +13,7 @@ BCH_POLYNOMIAL = 8219
 BCH_BITS = 100
 # for determining how many times the packet should be repeated for ecc
 NUM_REPETITIONS = 4
+MAX_MESSAGE_LENGTH = 50
 
 # check for errors and correct
 def performBCHCorrection(extractedPacket):
@@ -24,15 +26,16 @@ def performBCHCorrection(extractedPacket):
 # assumes decryptMsg will be a list of binary with spaces between each 8 bits
 def extractBCHPacket(decryptMsg):
 	# turn binary back into int and append to bytearray
-	decryptMsg = decryptMsg.split()
 	extractedPacket = bytearray(b'')
-	for i in range(0, len(decryptMsg)):
+	i = 0
+	while i < len(decryptMsg):
 		# introducing some errors
 		bit_num = random.randint(0, 20)
-		bytemessage = int(decryptMsg[i], 2)
+		bytemessage = int(decryptMsg[i:i+8], 2)
 		if bit_num == 0:
 			bytemessage = 1
 		extractedPacket.append(bytemessage)
+		i += 8
 	return extractedPacket
 
 # generates binary message and ecc from input string
@@ -46,13 +49,19 @@ def setupBCH(msg):
 	binPacket = ""
 	for i in range(0, len(packet)):
 		binPacket += '{0:08b}'.format(packet[i])
-		binPacket += " "
+		# binPacket += " "
 	return binPacket
 
-# assumes we're keeping track of original binary message length
-# TODO figure out if there's some sort of unique token that can be used to split messages or if we can like add an extra bit to look for
-def extractRepetitions(decryptMsg, originalBinaryLength):
+def convertMsgLength():
+	# if we change bch_length, conversion changes
+	start = len(setupBCH(''))
+	remainder = MAX_MESSAGE_LENGTH
+	# 8 bits
+	return (start + (8 * MAX_MESSAGE_LENGTH))
+	
+def extractRepetitions(decryptMsg):
 	indices = []
+	originalBinaryLength = convertMsgLength()
 	for i in range(0, NUM_REPETITIONS):
 		indices.append(originalBinaryLength*i)
 	parts = [decryptMsg[i:j] for i,j in zip(indices, indices[1:]+[None])]
@@ -132,14 +141,13 @@ def insertMessage(img, msg, aad):
 
 	# repeat the message+ecc based on NUM_REPETITIONS
 	binaryMsg = setupBCH(msg)
-	originalBinaryMsgLength = len(binaryMsg)
 	binaryMsg = setupRepetitions(binaryMsg)
 
 	#Generate psuedo random order of pixels to modify based on length of bch msg
 	order = random.sample(range(0, img.width * img.height), (len(binaryMsg.split(" "))-1) * 2) 
 	pixels = list(img.getdata())	#Flatten RGBA arrays into a list
 
-	binaryMsg = binaryMsg.replace(" ", "")
+	# binaryMsg = binaryMsg.replace(" ", "")
 
 	for i in range(0, len(order) - 1):
 		for j in range(0, 4):
@@ -176,11 +184,11 @@ def insertMessage(img, msg, aad):
 		for j in range(0, 4):
 			decryptMsg = decryptMsg + findLSB(alteredPixels[decryptOrder[i]][j])
 
-		if (i % 2 == 1):
-			decryptMsg = decryptMsg + " "
+		# if (i % 2 == 1):
+		# 	decryptMsg = decryptMsg + " "
 
 	# Split repeated packet based on length
-	repeatedMessages = extractRepetitions(decryptMsg, originalBinaryMsgLength)
+	repeatedMessages = extractRepetitions(decryptMsg)
 
 	# extract packet and perform BCH correction on each repeated message
 	for i in range(0, len(repeatedMessages)):
@@ -189,14 +197,35 @@ def insertMessage(img, msg, aad):
 
 if __name__== "__main__":
 
-	if (len(sys.argv) < 2):
-		raise WrongNumberofArguments("Please provide the image file, the message you wish to encrypt, and a name to identify this message")
+	# if (len(sys.argv) < 2):
+	# 	raise WrongNumberofArguments("Please provide the image file, the message you wish to encrypt, and a name to identify this message")
 
-	else:
-		img = Image.open(sys.argv[1])
+	# else:
+	# 	img = Image.open(sys.argv[1])
 		
-		img = img.convert("RGBA")
+	# 	img = img.convert("RGBA")
 
-		print("Inserting message into image...\n")
+	# 	print("Inserting message into image...\n")
 
-		insertMessage(img, sys.argv[2], sys.argv[3])
+	# 	insertMessage(img, sys.argv[2], sys.argv[3])
+	img = Image.open("../Images/Picture.png")
+		
+	img = img.convert("RGBA")
+
+	print("Inserting message into image...\n")
+	testmsg = "a"
+	i = len(testmsg)
+	while i < MAX_MESSAGE_LENGTH:
+		testmsg += " "
+		i = len(testmsg)
+
+	# repeat the message+ecc based on NUM_REPETITIONS
+	binaryMsg = setupBCH(testmsg)
+	binaryMsg = setupRepetitions(binaryMsg)
+	repeatedMessages = extractRepetitions(binaryMsg)
+	# extract packet and perform BCH correction on each repeated message
+	for i in range(0, len(repeatedMessages)):
+		extractedPacket = extractBCHPacket(repeatedMessages[i])
+		performBCHCorrection(extractedPacket)	
+
+	# insertMessage(img, testmsg, "testmsg")

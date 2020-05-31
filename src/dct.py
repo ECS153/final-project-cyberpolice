@@ -7,6 +7,14 @@ import math
 from scipy.fftpack import dct
 from scipy.fftpack import idct
 from cryptography.fernet import Fernet
+import bchlib
+
+BCH_POLYNOMIAL = 8219
+# max number of bit flips we can account for, increasing this increase the ecc length
+BCH_BITS = 30
+# for determining how many times the packet should be repeated for ecc
+NUM_REPETITIONS = 3
+MAX_MESSAGE_LENGTH = 50
 
 u1 = 3
 v1 = 2  #Middle band coordinates
@@ -28,22 +36,84 @@ def idctType2(a):
 def round_down(num, divisor):
 	return num - (num % divisor)
 
+# check for errors and correct
+def performBCHCorrection(extractedPacket):
+	bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)	
+	newData, newEcc = extractedPacket[:-bch.ecc_bytes], extractedPacket[-bch.ecc_bytes:]
+	try:
+		bitflips = bch.decode_inplace(newData, newEcc)
+		print('bitflips: %d' % (bitflips))
+		print("Here is the decrypted message: ", newData.decode('utf-8'))
+		return newData.decode('utf-8')
+	except:
+		print("Issues with decoding data, here's what was recovered: ", newData)
+		return newData
+
+# assumes decryptMsg will be a list of binary with spaces between each 8 bits
+def extractBCHPacket(decryptMsg):
+	# turn binary back into int and append to bytearray
+	extractedPacket = bytearray(b'')
+	i = 0
+	while i < len(decryptMsg):
+		bytemessage = int(decryptMsg[i:i+8], 2)
+		extractedPacket.append(bytemessage)
+		i += 8
+	return extractedPacket
+
+# generates binary message and ecc from input string
+def setupBCH(msg):
+	
+	# create a bch object
+	bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)
+	data = bytearray()
+	data.extend(map(ord, msg))
+	ecc = bch.encode(data)
+	packet = data + ecc
+	binPacket = ""
+	for i in range(0, len(packet)):
+		binPacket += '{0:08b}'.format(packet[i])
+		# binPacket += " "
+	return binPacket
+
+def convertMsgLength():
+	# if we change bch_length, conversion changes
+	start = len(setupBCH(''))
+	remainder = MAX_MESSAGE_LENGTH
+	# 8 bits
+	return (start + (8 * MAX_MESSAGE_LENGTH))
+	
+def extractRepetitions(decryptMsg):
+	indices = []
+	originalBinaryLength = convertMsgLength()
+	for i in range(0, NUM_REPETITIONS):
+		indices.append(originalBinaryLength*i)
+	parts = [decryptMsg[i:j] for i,j in zip(indices, indices[1:]+[None])]
+	return parts
+
+def setupRepetitions(binaryMsg):
+	# repeat the message+ecc based on NUM_REPETITIONS
+	temp = binaryMsg
+	for i in range(0, NUM_REPETITIONS - 1):
+		binaryMsg += temp
+	return binaryMsg
+
 def msg_encodeBinary(msg):
-	binary_msg = msg.encode()
-
-	binary_int = int.from_bytes(binary_msg, "big")
-
-	return bin(binary_int)[2:]
+	i = len(msg)
+	while i < 50:
+		msg += " "
+		i = len(msg)
+	binaryMsg = setupBCH(msg)
+	return setupRepetitions(binaryMsg)
 
 
 def msg_decodeBinary(msg):
-	msg_int = int(msg, 2)
-
-	msg_num_bytes = msg_int.bit_length() + 7 // 8
-
-	msg_bytes = msg_int.to_bytes(msg_num_bytes, "big")
-
-	return msg_bytes.decode('utf-8').lstrip('\x00')
+	repeatedMessages = extractRepetitions(msg)
+	# extract packet and perform BCH correction on each repeated message
+	extractedMessage = ""
+	for i in range(0, len(repeatedMessages)):
+		extractedPacket = extractBCHPacket(repeatedMessages[i])
+		extractedMessage = performBCHCorrection(extractedPacket)
+	return extractedMessage
 
 
 def check_coeff(c1, c2, bit, P):
@@ -182,6 +252,8 @@ if __name__ == "__main__":
 	else:
 		stegoFile = sys.argv[2]
 		msg = sys.argv[3]
+		if (len(msg) < MAX_MESSAGE_LENGTH):
+			raise ValueError("Please make sure your message is less than " + MAX_MESSAGE_LENGTH + " characters long.")
 
 		cover = imageio.imread(sys.argv[1], pilmode='L')
 
@@ -205,7 +277,3 @@ if __name__ == "__main__":
 		pyplot.show()
 
 		extracted_msg = extract_DCT(stegojpg, key, encoded_text, order)
-
-		print("Extracted message:", extracted_msg)
-		if (extracted_msg == msg):
-			print("Successfully extracted the same message")

@@ -33,8 +33,6 @@ def test_compression(cover, msg, threshold):
 	else:
 		print("The file does not exist")
 
-
-
 def main():
 	if (len(sys.argv) < 3):
 			raise ValueError("Please provide the cover image file, threshold, \
@@ -42,13 +40,10 @@ def main():
 	cover = imageio.imread(sys.argv[1], pilmode='L')
 	threshold = int(sys.argv[2])
 	msg = sys.argv[3]
-
+	i = len(msg)
+	while i < 50:
+		msg += " "
+		i = len(msg)
 	test_compression(cover, msg, threshold)
 
-
-
-
-
 main()
-
-
