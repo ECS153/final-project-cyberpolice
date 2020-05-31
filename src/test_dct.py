@@ -23,7 +23,7 @@ def test_compression(cover, msg, threshold):
 			extracted_msg = extract_DCT(stegojpg, key, encoded_text, order)
 			print("\tRecovered Messages:")
 			for x in extracted_msg:
-				print("\t\t" + x)
+				print("\t\t", x)
 				if (x == msg):
 					match = True
 
