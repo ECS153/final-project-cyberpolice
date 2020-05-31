@@ -15,7 +15,9 @@ v2 = 3
 
 n = 8 # 8x8 pixel block
 
-thresh = 600  #Threshold
+threshold = 500  #Threshold
+
+compressionRate = 50
 
 def dctType2(a):
 	return dct(dct(a, axis=0), axis=1)
@@ -29,7 +31,7 @@ def round_down(num, divisor):
 def msg_encodeBinary(msg):
 	binary_msg = msg.encode()
 
-	binary_int = int.from_bytes(binary_msg, "big") 
+	binary_int = int.from_bytes(binary_msg, "big")
 
 	return bin(binary_int)[2:]
 
@@ -41,7 +43,7 @@ def msg_decodeBinary(msg):
 
 	msg_bytes = msg_int.to_bytes(msg_num_bytes, "big")
 
-	return msg_bytes.decode().lstrip('\x00')
+	return msg_bytes.decode('utf-8').lstrip('\x00')
 
 
 def check_coeff(c1, c2, bit, P):
@@ -101,13 +103,12 @@ def embed_bit(arr, b_msg, P):
 	#Modify coefficients if they don't satisfy req for bit value
 	while(check_coeff(coeff[u1, v1], coeff[u2,v2], b_msg, P) == False):
 		coeff = modify_coeff(coeff, b_msg, c1_init, c2_init)
-
+	
 	block = idctType2(coeff) / ((2*n)**(2))
-
 	return block;
 
 
-def embed_DCT(cover, msg):
+def embed_DCT(cover, msg, thresh):
 	coverSize = cover.shape
 
 	stego = cover.copy()  #create copy of cover
@@ -143,17 +144,17 @@ def embed_DCT(cover, msg):
 	cipher_suite = Fernet(key)
 	encoded_text = cipher_suite.encrypt(binOrderString)
 
-	return stego, key, encoded_text
+	return stego, key, encoded_text, order
 
 def extract_bit(arr):
 	coeff = dctType2(arr)
-	if (abs(coeff[u1, v1]) - abs(coeff[u2, v2]) > 0):
+	if (abs(coeff[u1, v1]) - abs(coeff[u2, v2]) >= 0):
 		return '0'
 	else:
 		return '1'
 
 
-def extract_DCT(stego, key, encoded_text):
+def extract_DCT(stego, key, encoded_text, order1):
 	stegoSize = stego.shape
 
 	cipher_suite = Fernet(key)
@@ -172,13 +173,11 @@ def extract_DCT(stego, key, encoded_text):
 
 	return msg_decodeBinary(msg)
 
-
 if __name__ == "__main__":
 	import sys
 	if (len(sys.argv) < 2):
 		raise ValueError("Please provide the cover image file, \
-						  output file name, a message, and name\
-						  for your key\n")
+						  output file name, and a message\n")
 
 	else:
 		stegoFile = sys.argv[2]
@@ -188,17 +187,25 @@ if __name__ == "__main__":
 
 		print("Inserting watermark into image...\n")
 
-		stego, key, encoded_text = embed_DCT(cover, msg)
-		print("Writing to ", stegoFile)
-		imageio.imwrite(stegoFile, stego, pilmode='L', quality=100)
-		stego = imageio.imread(stegoFile, pilmode='L');
+		stego, key, encoded_text, order = embed_DCT(cover, msg, threshold)
+
+		print("Writing to", stegoFile)
+
+		#Save image with message
+		imageio.imwrite(stegoFile + ".jpg", stego, pilmode='L', quality=compressionRate)
+		imageio.imwrite(stegoFile + ".bmp", stego);
+
+		#Display Image
+		stegojpg = imageio.imread(stegoFile + ".jpg", pilmode='L');
+		stegobmp = imageio.imread(stegoFile + ".bmp", pilmode='L');
 
 		pyplot.figure(2)
 
-		pyplot.imshow( np.hstack( (cover, stego) ) ,cmap='gray')
+		pyplot.imshow( np.hstack( (cover, stegobmp, stegojpg) ) ,cmap='gray')
 		pyplot.show()
-		extracted_msg = extract_DCT(stego, key, encoded_text)
+
+		extracted_msg = extract_DCT(stegojpg, key, encoded_text, order)
 
 		print("Extracted message:", extracted_msg)
 		if (extracted_msg == msg):
-			print("Successfully extracted same message")
+			print("Successfully extracted the same message")
