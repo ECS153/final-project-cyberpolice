@@ -2,6 +2,8 @@ import os
 import random
 import time
 import sys
+import matplotlib.pyplot as pyplot
+import numpy as np
 from PIL import Image
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
@@ -88,10 +90,11 @@ def insertMessage(img, msg, aad):
 			pixels[ order[i] ] = changeLSB(pixels[ order[i] ], binaryMsg[ (i*4):((i*4)+4) ])
 
 	alteredImg.putdata(pixels)  #Place modified pixels into another image
+	print(img)
+	pyplot.figure(1)
 
-	print("Displaying image with embedded message...\n")
-
-	alteredImg.show("Altered Image")
+	pyplot.imshow(np.concatenate((img, alteredImg), axis = 1 ))
+	pyplot.show()
 
 	orderString = " ".join(map(str,order))        #Concatenate pixel coordinates into one whole string
 	byteString = bytes(orderString, "ascii")	  #Must be byte array to encrpt
@@ -141,8 +144,7 @@ if __name__== "__main__":
 		
 		img = img.convert("RGBA")
 
-		img.show("Original image")
-
 		print("Inserting message into image...\n")
 
 		insertMessage(img, sys.argv[2], sys.argv[3])
+
