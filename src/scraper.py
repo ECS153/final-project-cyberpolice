@@ -18,16 +18,31 @@ def ReadImage(url, greyscale=True):
   img = imageio.imread(url, pilmode='L') if greyscale else imageio.imread(url)
   return img
 
+def GalleryLinks(gallery):
+  links = []
+  for item in gallery:
+    links += GalleryObjectLinks(item)
+  return links
+
+def GalleryObjectLinks(galleryObject):
+  links = []
+  try:
+    for image in galleryObject.images:
+      links.append(image['link'])
+  except AttributeError:
+    links.append(galleryObject.link)
+  return links
+
 def imagesFromGalleryObject(galleryObject):
   images = []
   try:
     for image in galleryObject.images:
-      if image['link'][-4:].lower() not in ['.mp4', '.gif']:
-        continue
-      img = imageio.imread(image['link'], pilmode='L')
-      images.append(img)
+      print(image['link'][-4:])
+      if image['link'][-4:] not in ['.mp4', '.gif']:
+        img = imageio.imread(image['link'], pilmode='L')
+        images.append(img)
   except AttributeError:
-    if galleryObject.link[-4:].lower() not in ['.mp4', '.gif']:
+    if galleryObject.link[-4:] not in ['.mp4', '.gif']:
       img = imageio.imread(galleryObject.link, pilmode='L')
       images.append(img)
   return images
@@ -52,42 +67,66 @@ def checkMatch(msg, stego, key, cipherText):
 
 class MonitorApp:
   def __init__(self):
+    self.isEncoded = False
     self.coverImageFilePath = None
     self.stegoImageFilePath = None
     self.key = None
     self.cipherText = None
     self.mainWindow = Tk()
+    self.mainWindow.title('Steganography Tools')
+    self.mainWindow.resizable(False, False)
     self.notebook = Notebook(self.mainWindow)
     self.encodeTab = Frame(self.notebook)
     self.decodeTab = Frame(self.notebook)
+    self.monitorTab = Frame(self.notebook)
     self.notebook.add(self.encodeTab, text='Encode', compound=TOP)
     self.notebook.add(self.decodeTab, text='Decode')
+    self.notebook.add(self.monitorTab, text='Monitor')
     self.setupEncodingTab(self.encodeTab)
     self.setupDecodingTab(self.decodeTab)
+    self.setupMonitorTab(self.monitorTab)
     self.notebook.pack()
-    
   
   def setupEncodingTab(self, tab):
-    self.coverImageFileButton = Button(tab, text='Click to choose cover file', command=lambda: self.chooseCoverImageFilePath())
-    self.coverImageFileButton.grid(row=0, columnspan=2, pady=(10,0))
-    Label(tab, text='Fingerprint').grid(row=1, column=0)
-    self.messageEntry = Entry(tab)
-    self.messageEntry.grid(row=1, column=1)
+    frame = Frame(tab)
+    frame.grid(row=0, columnspan=2)
+    Label(frame, text='Fingerprint').grid(row=0, column=0, pady=(10,5), sticky='e')
+    self.messageEntry = Entry(frame)
+    self.messageEntry.grid(row=0, column=1, pady=(10,5))
+    self.coverImageFileButton = Button(tab, text='Choose cover image', command=lambda: self.chooseCoverImageFilePath())
+    self.coverImageFileButton.grid(row=1, column=0, pady=(5,5), sticky='w')
     self.encodeButton = Button(tab, text='Encode', command=self.encode)
-    self.encodeButton.grid(row=2, columnspan=2)
+    self.encodeButton.grid(row=1, column=1, pady=(5,5), sticky='w')
 
   def setupDecodingTab(self, tab):
     self.curRadio = IntVar()
     self.urlRadio = Radiobutton(tab, text='URL', variable=self.curRadio, value=0)
-    self.urlRadio.grid(row=0, column=0, pady=(10,0))
+    self.urlRadio.grid(row=0, column=0, pady=(10,5))
     self.urlEntry = Entry(tab)
-    self.urlEntry.grid(row=0, column=1, pady=(10,0))
+    self.urlEntry.grid(row=0, column=1, pady=(10,5))
     self.stegoFileRadio = Radiobutton(tab, text='File', variable=self.curRadio, value=1)
-    self.stegoFileRadio.grid(row=1, column=0)
+    self.stegoFileRadio.grid(row=1, column=0, pady=(10,5))
     self.stegoImageFileButton = Button(tab, text='Click to choose stego file', command=lambda: self.chooseStegoImageFilePath())
     self.stegoImageFileButton.grid(row=1, column=1)
     self.encodeButton = Button(tab, text='Decode', command=self.decode)
-    self.encodeButton.grid(row=2, columnspan=2) 
+    self.encodeButton.grid(row=2, columnspan=2, pady=(10,5)) 
+
+  def setupMonitorTab(self, tab):
+    self.scannedImagesText = Text(tab)
+    # self.scannedImagesText.configure(state='disabled')
+    self.scannedImagesText.grid(row=0)
+    self.scanButton = Button(tab, text='Scan Imgur Viral Images', command=self.scanImgurViral)
+    self.scanButton.grid(row=1)
+
+  def scanImgurViral(self):
+    imgurClient = ImgurClient(imgurEnv['client_id'], imgurEnv['client_secret'])
+    links = GalleryLinks(imgurClient.gallery())
+    imageLinks = [link for link in links if link[-4:] not in ('.mp4', '.gif')]
+    for link in imageLinks:
+      stego = imageio.imread(link, pilmode='L')
+      matchStatus = 'Match!' if checkMatch(self.message, stego, self.key, self.cipherText) else 'No match'
+      print('{} --- {}\n'.format(link, matchStatus))
+      self.scannedImagesText.insert(END, '{} --- {}\n'.format(link, matchStatus))
 
   def start(self):
     self.mainWindow.mainloop()
@@ -107,7 +146,7 @@ class MonitorApp:
     self.stegoImageFileButton.configure(text=path)
 
   def encode(self):
-    if not self.coverImageFilePath:
+    if not self.coverImageFilePath or self.messageEntry.get() == None:
       return
     cover = imageio.imread(self.coverImageFilePath, pilmode='L')
     self.message = self.messageEntry.get()
@@ -116,8 +155,11 @@ class MonitorApp:
     end = self.coverImageFilePath.rindex('.')
     stegoFilePath = self.coverImageFilePath[:begin+1] + 'stego' + self.coverImageFilePath[end:]
     imageio.imwrite(stegoFilePath, stego, pilmode='L', quality=50)
+    self.isEncoded=  True
 
   def decode(self):
+    if not self.isEncoded:
+      return
     stegoPath = self.urlEntry.get() if self.curRadio.get() == 0 else self.stegoImageFilePath
     if not stegoPath:
       return
@@ -128,28 +170,6 @@ class MonitorApp:
       messagebox.showinfo('Not a match', 'The fingerprint was not found in the image')
 
 if __name__ == "__main__":
-  # cover = imageio.imread('S:/Downloads/cover.jpg', pilmode='L')
-  # msg = 'mymessage'
-  # stego, key, cipherText = embed_DCT(cover, msg, 500)
-  # imageio.imwrite('S:/Downloads/stego.jpg', stego, pilmode='L', quality=50)
-
-  # imgurClient = ImgurClient(imgurEnv['client_id'], imgurEnv['client_secret'])
-  # # items = imgurClient.gallery()
-  # # images = []
-  # # for item in items:
-  # #   images += imagesFromGalleryObject(item)
-
-  # # for image in images:
-  # #   print(image)
-  # #   extractedMsg = extract_DCT(image, key, cipherText)
-  # #   print(extractedMsg == msg)
-
-  # # pyplot.imshow(im)
-  # # pyplot.show()
-
-  # url = imgurClient.get_image('PhGOkkJ').link
-  # im = ReadImage(url)
-  # print(checkMatch(msg, im, key, cipherText))
   monitorApp = MonitorApp()
   monitorApp.start()
   
