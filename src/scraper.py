@@ -69,8 +69,8 @@ class MonitorApp:
   
   def setupEncodingTab(self, tab):
     self.coverImageFileButton = Button(tab, text='Click to choose cover file', command=lambda: self.chooseCoverImageFilePath())
-    self.coverImageFileButton.grid(row=0, columnspan=2, pady=(20,0))
-    Label(tab, text='Message').grid(row=1, column=0)
+    self.coverImageFileButton.grid(row=0, columnspan=2, pady=(10,0))
+    Label(tab, text='Fingerprint').grid(row=1, column=0)
     self.messageEntry = Entry(tab)
     self.messageEntry.grid(row=1, column=1)
     self.encodeButton = Button(tab, text='Encode', command=self.encode)
@@ -79,9 +79,9 @@ class MonitorApp:
   def setupDecodingTab(self, tab):
     self.curRadio = IntVar()
     self.urlRadio = Radiobutton(tab, text='URL', variable=self.curRadio, value=0)
-    self.urlRadio.grid(row=0, column=0)
+    self.urlRadio.grid(row=0, column=0, pady=(10,0))
     self.urlEntry = Entry(tab)
-    self.urlEntry.grid(row=0, column=1)
+    self.urlEntry.grid(row=0, column=1, pady=(10,0))
     self.stegoFileRadio = Radiobutton(tab, text='File', variable=self.curRadio, value=1)
     self.stegoFileRadio.grid(row=1, column=0)
     self.stegoImageFileButton = Button(tab, text='Click to choose stego file', command=lambda: self.chooseStegoImageFilePath())
