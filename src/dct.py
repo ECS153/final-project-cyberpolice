@@ -279,6 +279,7 @@ if __name__ == "__main__":
 		pyplot.figure(2)
 
 		pyplot.imshow( np.hstack( (cover, stegobmp, stegojpg) ) ,cmap='gray')
+		pyplot.axis('off')
 		pyplot.show()
 
 		extracted_msg = extract_DCT(stegojpg, key, encoded_text)

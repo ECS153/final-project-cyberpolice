@@ -12,7 +12,7 @@ def test_compression(cover, msg, threshold):
 	for rate in range(10, 110, 10):
 		match = False
 
-		stego, key, encoded_text, order = embed_DCT(cover, msg, threshold)
+		stego, key, encoded_text = embed_DCT(cover, msg, threshold)
 
 		#Writeback as jpg to simulate compression
 		imageio.imwrite(file + ".jpg", stego, pilmode='L', quality= rate)
@@ -20,7 +20,7 @@ def test_compression(cover, msg, threshold):
 		stegojpg = imageio.imread(file + ".jpg", pilmode='L')
 
 		try:
-			extracted_msg = extract_DCT(stegojpg, key, encoded_text, order)
+			extracted_msg = extract_DCT(stegojpg, key, encoded_text)
 			print("\tRecovered Messages:")
 			for x in extracted_msg:
 				print("\t\t", x)
