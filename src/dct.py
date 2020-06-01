@@ -216,7 +216,7 @@ def embed_DCT(cover, msg, thresh):
 	cipher_suite = Fernet(key)
 	encoded_text = cipher_suite.encrypt(binOrderString)
 
-	return stego, key, encoded_text, order
+	return stego, key, encoded_text
 
 def extract_bit(arr):
 	coeff = dctType2(arr)
@@ -226,7 +226,7 @@ def extract_bit(arr):
 		return '1'
 
 
-def extract_DCT(stego, key, encoded_text, order1):
+def extract_DCT(stego, key, encoded_text):
 	stegoSize = stego.shape
 
 	cipher_suite = Fernet(key)
@@ -264,7 +264,7 @@ if __name__ == "__main__":
 
 		print("Inserting watermark into image...\n")
 
-		stego, key, encoded_text, order = embed_DCT(cover, msg, threshold)
+		stego, key, encoded_text = embed_DCT(cover, msg, threshold)
 
 		print("Writing to", stegoFile)
 
@@ -281,7 +281,7 @@ if __name__ == "__main__":
 		pyplot.imshow( np.hstack( (cover, stegobmp, stegojpg) ) ,cmap='gray')
 		pyplot.show()
 
-		extracted_msg = extract_DCT(stegojpg, key, encoded_text, order)
+		extracted_msg = extract_DCT(stegojpg, key, encoded_text)
 		print("\tOriginal Message:  ", msg + "\n")
 		for x in extracted_msg:
 			if (x == msg):
