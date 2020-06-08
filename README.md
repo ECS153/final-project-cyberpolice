@@ -6,3 +6,5 @@
 - scraper.py (Caleb) is the webscraper and gui used in the demo.
 - test_dct.py (Eric) is the script used for testing compression.
 - watermark.py (Travis) is a different version of the lsb scripts that allows you to choose where to place an image inside of another image.
+
+[Extended Presentation Slides](https://docs.google.com/presentation/d/1YFwJu6Z5TTK17DrJMK1FZgDpyD0c8btDWdB7g0IQNz8/edit?usp=sharing)
